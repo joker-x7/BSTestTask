@@ -31,6 +31,12 @@ namespace Logic
         {
             try
             {
+                string directory = Path.GetDirectoryName(path);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
                 StringBuilder sb = new StringBuilder();
 
                 sb.Append(nameof(Header.version)).Append(";");
@@ -66,6 +72,12 @@ namespace Logic
 
         public void ToSQLite(CustomFile file, string path)
         {
+            string directory = Path.GetDirectoryName(path);
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
             NumberFormatInfo volumeFormatInfo = new NumberFormatInfo();
             volumeFormatInfo.NumberDecimalSeparator = ".";
 

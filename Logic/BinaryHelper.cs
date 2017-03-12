@@ -11,6 +11,11 @@ namespace Logic
         {
             try
             {
+                string directory = Path.GetDirectoryName(path);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
                 using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.OpenOrCreate)))
                 {
                     writer.Write(file.Header.version);
@@ -37,6 +42,11 @@ namespace Logic
 
             try
             {
+                string directory = Path.GetDirectoryName(path);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
                 using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open), System.Text.Encoding.ASCII))
                 {
                     if (reader.PeekChar() > -1)
