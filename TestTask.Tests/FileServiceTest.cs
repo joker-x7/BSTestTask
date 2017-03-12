@@ -21,7 +21,7 @@ namespace TestTask.Tests
         [TestInitialize]
         public void Initialize()
         {
-            url = "http://localhost:8090";
+            url = "http://localhost:8080";
             service = new FileService(url);
             client = new HttpClient();
             service.Start();
