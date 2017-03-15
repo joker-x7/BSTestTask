@@ -51,7 +51,7 @@ namespace TestTask.Tests
                 type = "dat"
             };
 
-            for (int i = 0; i < 10000; i++)
+            for (int i = 0; i < 5; i++)
             {
                 file.Trades.Add(new TradeRecord()
                 {
@@ -83,9 +83,9 @@ namespace TestTask.Tests
         public void PostTestNegativ()
         {
             string path = "test files/test.dat";
-            string fullPath = Path.GetFullPath(path);
+            string fullPath = Regex.Replace(Path.GetFullPath(path), @"([^\\])\\([^\\])", m => m.Groups[1].Value + @"\\" + m.Groups[2].Value);
             string pathNonexistent = "test files/nonexistent file.dat";
-            string fullPathNonexistent = Path.GetFullPath(pathNonexistent);
+            string fullPathNonexistent = Regex.Replace(Path.GetFullPath(pathNonexistent), @"([^\\])\\([^\\])", m => m.Groups[1].Value + @"\\" + m.Groups[2].Value);
             string formatCsv = "csv";
             string formatUnsupported = "pdf";
 

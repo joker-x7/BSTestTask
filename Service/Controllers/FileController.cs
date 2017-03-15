@@ -52,8 +52,8 @@ namespace Service.Controllers
                 var fileName = Path.GetFileNameWithoutExtension(path);
                 var repoPath = GetRepoPath(fileName, format);
 
-                logic.ExportToFormat(path, repoPath, format);
-                return new HttpResponseMessage(HttpStatusCode.OK);
+                Task task = logic.ExportToFormatAsync(path, repoPath, format);
+                return Request.CreateResponse<string>(HttpStatusCode.OK, "Your request has been accepted for processing");
             }
             catch (Exception e)
             {

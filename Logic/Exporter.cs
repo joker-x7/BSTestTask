@@ -12,57 +12,36 @@ namespace Logic
 {
     public class Exporter
     {
-        public void ToFormat(CustomFile file, string path, string format)
+        public Task ToFormatAsync(string sourcePath, string repoPath, string format)
         {
             switch (format.ToLower())
             {
                 case "csv":
-                    ToCsv(file, path);
-                    break;
+                    return ToCsvAsync(sourcePath, repoPath);
                 case "db":
-                    ToSQLite(file, path);
-                    break;
+                    return ToSQLiteAsync(sourcePath, repoPath);
                 default:
                     throw new Exception("неподдерживаемый формат");
             }
         }
 
-        public void ToCsv(CustomFile file, string path)
+        public Task ToCsvAsync(string sourcePath, string repoPath)
         {
             try
             {
-                string directory = Path.GetDirectoryName(path);
-                if (!Directory.Exists(directory))
+                string repoDirectory = Path.GetDirectoryName(repoPath);
+                if (!Directory.Exists(repoDirectory))
                 {
-                    Directory.CreateDirectory(directory);
+                    Directory.CreateDirectory(repoDirectory);
                 }
-
-                StringBuilder sb = new StringBuilder();
-
-                sb.Append(nameof(Header.version)).Append(";");
-                sb.Append(nameof(Header.type));
-                sb.AppendLine();
-
-                sb.Append(file.Header.version).Append(";");
-                sb.Append(file.Header.type);
-                sb.AppendLine();
-
-                sb.Append(nameof(TradeRecord.id)).Append(";");
-                sb.Append(nameof(TradeRecord.account)).Append(";");
-                sb.Append(nameof(TradeRecord.volume)).Append(";");
-                sb.Append(nameof(TradeRecord.comment));
-                sb.AppendLine();
-
-                foreach (TradeRecord trade in file.Trades)
+                if (CanOpen(sourcePath))
                 {
-                    sb.Append(trade.id).Append(";");
-                    sb.Append(trade.account).Append(";");
-                    sb.Append(trade.volume).Append(";");
-                    sb.Append(trade.comment);
-                    sb.AppendLine();
+                    return Task.Run(() => WriteInCsv(sourcePath, repoPath));
                 }
-
-                File.WriteAllText(path, sb.ToString());
+                else
+                {
+                    throw new Exception("The file is busy with another process");
+                }
             }
             catch (Exception e)
             {
@@ -70,50 +49,134 @@ namespace Logic
             }
         }
 
-        public void ToSQLite(CustomFile file, string path)
+        public Task ToSQLiteAsync(string sourcePath, string repoPath)
         {
-            string directory = Path.GetDirectoryName(path);
-            if (!Directory.Exists(directory))
+            try
             {
-                Directory.CreateDirectory(directory);
+                string directory = Path.GetDirectoryName(repoPath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                if (CanOpen(sourcePath))
+                {
+                    return Task.Run(() => WriteInSQLite(sourcePath, repoPath));
+                }
+                else
+                {
+                    throw new Exception("The file is busy with another process");
+                }
             }
-
-            NumberFormatInfo volumeFormatInfo = new NumberFormatInfo();
-            volumeFormatInfo.NumberDecimalSeparator = ".";
-
-            string createTableHeaderText = "CREATE TABLE Header (version INTEGER, type TEXT);";
-            string createTableTradeText = "CREATE TABLE Trade (id INTEGER PRIMARY KEY, account INTEGER, volume DOUBLE, comment TEXT);";
-            string insertInHeaderText = string.Format("INSERT INTO 'Header' ('version', 'type') VALUES ({0}, '{1}');", file.Header.version, file.Header.type);
-            string tradesValues = string.Join(",", file.Trades.Select(x => string.Format("({0}, {1}, {2}, '{3}')", x.id, x.account, x.volume.ToString(volumeFormatInfo), x.comment)));
-            string insertInTradeText = string.Format("INSERT INTO 'Trade' ('id', 'account', 'volume', 'comment') VALUES {0};", tradesValues);
-
-            SQLiteConnection.CreateFile(path);
-
-            using (SQLiteConnection connection = new SQLiteConnection(string.Format("Data Source={0};", path)))
+            catch (Exception e)
             {
-                try
+                throw e;
+            }
+        }
+
+        public void WriteInCsv(string sourcePath, string repoPath)
+        {
+            using (BinaryReader reader = new BinaryReader(File.Open(sourcePath, FileMode.Open), System.Text.Encoding.ASCII))
+            {
+                if (reader.PeekChar() > -1)
+                {
+                    using (StreamWriter writer = new StreamWriter(File.Open(repoPath, FileMode.OpenOrCreate)))
+                    {
+                        writer.WriteLine(string.Format("{0};{1}",
+                            reader.ReadInt32(), //version
+                            reader.ReadString() //type
+                            ));
+                        writer.Flush();
+
+                        while (reader.PeekChar() > -1)
+                        {
+                            writer.WriteLine(string.Format("{0};{1};{2};{3}",
+                                reader.ReadInt32(), //id
+                                reader.ReadInt32(), //account
+                                reader.ReadDouble(), //volume
+                                reader.ReadString() //comment
+                                ));
+                            writer.Flush();
+                        }
+                    }
+                }
+            }
+        }
+
+        public void WriteInSQLite(string sourcePath, string repoPath)
+        {
+            string createTableHeaderText = "CREATE TABLE Header (version INTEGER, type TEXT);";
+            string createTableTradeText = "CREATE TABLE Trade (id INTEGER, account INTEGER, volume DOUBLE, comment TEXT);";
+            string insertInHeaderText = "INSERT INTO 'Header' ('version', 'type') VALUES (@version, @type);";
+            string insertInTradeText = "INSERT INTO 'Trade' ('id', 'account', 'volume', 'comment') VALUES (@id, @account, @volume, @comment);";
+
+            SQLiteConnection.CreateFile(repoPath);
+
+            using (BinaryReader reader = new BinaryReader(File.Open(sourcePath, FileMode.Open), System.Text.Encoding.ASCII))
+            {
+                using (SQLiteConnection connection = new SQLiteConnection(string.Format("Data Source={0};", repoPath)))
                 {
                     SQLiteCommand createTableHeader = new SQLiteCommand(createTableHeaderText, connection);
                     SQLiteCommand createTableTrade = new SQLiteCommand(createTableTradeText, connection);
-                    SQLiteCommand insertInHeader = new SQLiteCommand(insertInHeaderText, connection);
-                    SQLiteCommand insertInTrade = new SQLiteCommand(insertInTradeText, connection);
 
                     connection.Open();
                     createTableHeader.ExecuteNonQuery();
                     createTableTrade.ExecuteNonQuery();
-                    insertInHeader.ExecuteNonQuery();
-                    insertInTrade.ExecuteNonQuery();
 
                     createTableHeader.Dispose();
                     createTableTrade.Dispose();
-                    insertInHeader.Dispose();
-                    insertInTrade.Dispose();
-                }
-                catch (Exception e)
-                {
-                    throw e;
+
+                    if (reader.PeekChar() > -1)
+                    {
+                        SQLiteCommand insertInHeader = new SQLiteCommand(insertInHeaderText, connection);
+
+                        insertInHeader.Parameters.Add(new SQLiteParameter("@version", reader.ReadInt32()));
+                        insertInHeader.Parameters.Add(new SQLiteParameter("@type", reader.ReadString()));
+
+                        insertInHeader.ExecuteNonQuery();
+
+                        insertInHeader.Dispose();
+
+                        SQLiteCommand insertInTrade = new SQLiteCommand(insertInTradeText, connection);
+                        while (reader.PeekChar() > -1)
+                        {
+                            insertInTrade = new SQLiteCommand(insertInTradeText, connection);
+
+                            insertInTrade.Parameters.Add(new SQLiteParameter("@id", reader.ReadInt32()));
+                            insertInTrade.Parameters.Add(new SQLiteParameter("@account", reader.ReadInt32()));
+                            insertInTrade.Parameters.Add(new SQLiteParameter("@volume", reader.ReadDouble()));
+                            insertInTrade.Parameters.Add(new SQLiteParameter("@comment", reader.ReadString()));
+
+                            insertInTrade.ExecuteNonQuery();
+
+                            insertInTrade.Dispose();
+                        }
+                    }
                 }
             }
+        }
+
+        bool CanOpen(string path)
+        {
+            FileStream stream = null;
+
+            try
+            {
+                stream = File.Open(path, FileMode.Open);
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            finally
+            {
+                if (stream != null)
+                {
+                    stream.Close();
+                }
+            }
+
+            return true;
         }
     }
 }

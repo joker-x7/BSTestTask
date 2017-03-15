@@ -21,10 +21,9 @@ namespace Logic
             exporter = new Exporter();
         }
 
-        public void ExportToFormat(string sourcePath, string repoPath, string format)
+        public Task ExportToFormatAsync(string sourcePath, string repoPath, string format)
         {
-            CustomFile file = binaryHelper.Reade(sourcePath);
-            exporter.ToFormat(file, repoPath, format);
+            return exporter.ToFormatAsync(sourcePath, repoPath, format);
         }
 
         public FileStream GetStream(string path)
