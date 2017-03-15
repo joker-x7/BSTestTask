@@ -13,6 +13,7 @@ using Entities;
 using Logic;
 using Newtonsoft.Json.Linq;
 using NLog;
+using Service.Models;
 
 namespace Service.Controllers
 {
@@ -27,17 +28,20 @@ namespace Service.Controllers
             logger = LogManager.GetCurrentClassLogger();
         }
 
-        public HttpResponseMessage Post()
+        public HttpResponseMessage Post([FromBody]PostObj postObj)
         {
             try
             {
-                //Get json string from body of request
-                string json = Request.Content.ReadAsStringAsync().Result;
-                //Replace single char '\' on double char '\\' for correct work JObject.Parse
-                json = Regex.Replace(json, @"([^\\])\\([^\\])", m => m.Groups[1].Value + "\\\\" + m.Groups[2].Value);
-                var jsonData = JObject.Parse(json);
-                string path = jsonData["Path"].ToString();
-                string format = jsonData["Format"].ToString();
+                ////Get json string from body of request
+                //string json = Request.Content.ReadAsStringAsync().Result;
+                ////Replace single char '\' on double char '\\' for correct work JObject.Parse
+                //json = Regex.Replace(json, @"([^\\])\\([^\\])", m => m.Groups[1].Value + "\\\\" + m.Groups[2].Value);
+                //var jsonData = JObject.Parse(json);
+                //string path = jsonData["Path"].ToString();
+                //string format = jsonData["Format"].ToString();
+
+                string path = postObj.Path;
+                string format = postObj.Format;
 
                 logger.Info("The request came. Method: '{0}', Request path: '{1}', File path: '{2}', File format: '{3}'",
                     Request.Method,

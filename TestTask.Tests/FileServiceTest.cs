@@ -3,6 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Entities;
 using Logic;
@@ -38,7 +39,7 @@ namespace TestTask.Tests
         public void PostTestPositiv()
         {
             string path = "test files/test.dat";
-            string fullPath = Path.GetFullPath(path);
+            string fullPath = Regex.Replace(Path.GetFullPath(path), @"([^\\])\\([^\\])", m => m.Groups[1].Value + @"\\" + m.Groups[2].Value);
             string formatCsv = "csv";
             string formatSQLite = "db";
             BinaryHelper binaryHelper = new BinaryHelper();

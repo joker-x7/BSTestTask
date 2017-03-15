@@ -74,6 +74,7 @@
   <ItemGroup>
     <Compile Include="Controllers\FileController.cs" />
     <Compile Include="FileService.cs" />
+    <Compile Include="Models\PostObj.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
