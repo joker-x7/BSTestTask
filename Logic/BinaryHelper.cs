@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using Entities;
 
 namespace Logic
@@ -16,17 +17,15 @@ namespace Logic
                 {
                     Directory.CreateDirectory(directory);
                 }
-                using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.OpenOrCreate)))
+                using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.OpenOrCreate), System.Text.Encoding.Default))
                 {
-                    writer.Write(file.Header.version);
-                    writer.Write(file.Header.type);
+                    writer.Write(TypeToByte<Header>(file.Header));
+                    writer.Flush();
 
                     foreach (TradeRecord trade in file.Trades)
                     {
-                        writer.Write(trade.id);
-                        writer.Write(trade.account);
-                        writer.Write(trade.volume);
-                        writer.Write(trade.comment);
+                        writer.Write(TypeToByte<TradeRecord>(trade));
+                        writer.Flush();
                     }
                 }
             }
@@ -36,47 +35,17 @@ namespace Logic
             }
         }
 
-        public CustomFile Reade(string path)
+        private byte[] TypeToByte<T>(T structure)
         {
-            CustomFile file = new CustomFile();
+            int size = Marshal.SizeOf(structure);
+            byte[] arr = new byte[size];
 
-            try
-            {
-                string directory = Path.GetDirectoryName(path);
-                if (!Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-                using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open), System.Text.Encoding.ASCII))
-                {
-                    if (reader.PeekChar() > -1)
-                    {
-                        Header header = new Header();
-                        header.version = reader.ReadInt32();
-                        header.type = reader.ReadString();
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            Marshal.StructureToPtr(structure, ptr, true);
+            Marshal.Copy(ptr, arr, 0, size);
+            Marshal.FreeHGlobal(ptr);
 
-                        file.Header = header;
-
-                        while (reader.PeekChar() > -1)
-                        {
-                            TradeRecord trade = new TradeRecord();
-
-                            trade.id = reader.ReadInt32();
-                            trade.account = reader.ReadInt32();
-                            trade.volume = reader.ReadDouble();
-                            trade.comment = reader.ReadString();
-
-                            file.Trades.Add(trade);
-                        }
-                    }
-                }
-
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
-            return file;
+            return arr;
         }
     }
 }

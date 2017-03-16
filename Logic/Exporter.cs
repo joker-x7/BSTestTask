@@ -4,6 +4,7 @@ using System.Data.SQLite;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Entities;
@@ -76,25 +77,29 @@ namespace Logic
 
         public void WriteInCsv(string sourcePath, string repoPath)
         {
-            using (BinaryReader reader = new BinaryReader(File.Open(sourcePath, FileMode.Open), System.Text.Encoding.ASCII))
+            Header header;
+            TradeRecord tradeRecord;
+            using (BinaryReader reader = new BinaryReader(File.Open(sourcePath, FileMode.Open)))
             {
                 if (reader.PeekChar() > -1)
                 {
                     using (StreamWriter writer = new StreamWriter(File.Open(repoPath, FileMode.OpenOrCreate)))
                     {
+                        header = ByteToType<Header>(reader);
                         writer.WriteLine(string.Format("{0};{1}",
-                            reader.ReadInt32(), //version
-                            reader.ReadString() //type
+                            header.version,
+                            header.type
                             ));
                         writer.Flush();
 
                         while (reader.PeekChar() > -1)
                         {
+                            tradeRecord = ByteToType<TradeRecord>(reader);
                             writer.WriteLine(string.Format("{0};{1};{2};{3}",
-                                reader.ReadInt32(), //id
-                                reader.ReadInt32(), //account
-                                reader.ReadDouble(), //volume
-                                reader.ReadString() //comment
+                                tradeRecord.id,
+                                tradeRecord.account,
+                                tradeRecord.volume,
+                                tradeRecord.comment
                                 ));
                             writer.Flush();
                         }
@@ -105,6 +110,9 @@ namespace Logic
 
         public void WriteInSQLite(string sourcePath, string repoPath)
         {
+            Header header;
+            TradeRecord tradeRecord;
+
             string createTableHeaderText = "CREATE TABLE Header (version INTEGER, type TEXT);";
             string createTableTradeText = "CREATE TABLE Trade (id INTEGER, account INTEGER, volume DOUBLE, comment TEXT);";
             string insertInHeaderText = "INSERT INTO 'Header' ('version', 'type') VALUES (@version, @type);";
@@ -112,7 +120,7 @@ namespace Logic
 
             SQLiteConnection.CreateFile(repoPath);
 
-            using (BinaryReader reader = new BinaryReader(File.Open(sourcePath, FileMode.Open), System.Text.Encoding.ASCII))
+            using (BinaryReader reader = new BinaryReader(File.Open(sourcePath, FileMode.Open), System.Text.Encoding.Default))
             {
                 using (SQLiteConnection connection = new SQLiteConnection(string.Format("Data Source={0};", repoPath)))
                 {
@@ -130,8 +138,10 @@ namespace Logic
                     {
                         SQLiteCommand insertInHeader = new SQLiteCommand(insertInHeaderText, connection);
 
-                        insertInHeader.Parameters.Add(new SQLiteParameter("@version", reader.ReadInt32()));
-                        insertInHeader.Parameters.Add(new SQLiteParameter("@type", reader.ReadString()));
+                        header = ByteToType<Header>(reader);
+
+                        insertInHeader.Parameters.Add(new SQLiteParameter("@version", header.version));
+                        insertInHeader.Parameters.Add(new SQLiteParameter("@type", header.type));
 
                         insertInHeader.ExecuteNonQuery();
 
@@ -142,10 +152,12 @@ namespace Logic
                         {
                             insertInTrade = new SQLiteCommand(insertInTradeText, connection);
 
-                            insertInTrade.Parameters.Add(new SQLiteParameter("@id", reader.ReadInt32()));
-                            insertInTrade.Parameters.Add(new SQLiteParameter("@account", reader.ReadInt32()));
-                            insertInTrade.Parameters.Add(new SQLiteParameter("@volume", reader.ReadDouble()));
-                            insertInTrade.Parameters.Add(new SQLiteParameter("@comment", reader.ReadString()));
+                            tradeRecord = ByteToType<TradeRecord>(reader);
+
+                            insertInTrade.Parameters.Add(new SQLiteParameter("@id", tradeRecord.id));
+                            insertInTrade.Parameters.Add(new SQLiteParameter("@account", tradeRecord.account));
+                            insertInTrade.Parameters.Add(new SQLiteParameter("@volume", tradeRecord.volume));
+                            insertInTrade.Parameters.Add(new SQLiteParameter("@comment", tradeRecord.comment));
 
                             insertInTrade.ExecuteNonQuery();
 
@@ -177,6 +189,17 @@ namespace Logic
             }
 
             return true;
+        }
+
+        public T ByteToType<T>(BinaryReader reader)
+        {
+            byte[] bytes = reader.ReadBytes(Marshal.SizeOf(typeof(T)));
+
+            GCHandle handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            T structure = (T)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(T));
+            handle.Free();
+
+            return structure;
         }
     }
 }
