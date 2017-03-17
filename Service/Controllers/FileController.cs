@@ -52,8 +52,22 @@ namespace Service.Controllers
                 var fileName = Path.GetFileNameWithoutExtension(path);
                 var repoPath = GetRepoPath(fileName, format);
 
-                Task task = logic.ExportToFormatAsync(path, repoPath, format);
-                return Request.CreateResponse<string>(HttpStatusCode.OK, "Your request has been accepted for processing");
+                EExportResult result = logic.ExportToFormat(path, repoPath, format);
+                switch (result)
+                {
+                    case EExportResult.Accepted:
+                        return new HttpResponseMessage(HttpStatusCode.Accepted);
+                    case EExportResult.FileNotFond:
+                        return new HttpResponseMessage(HttpStatusCode.NotFound);
+                    case EExportResult.Created:
+                        return new HttpResponseMessage(HttpStatusCode.Created);
+                    case EExportResult.InProcessing:
+                        return new HttpResponseMessage(HttpStatusCode.NoContent);
+                    case EExportResult.Locked:
+                        return new HttpResponseMessage((HttpStatusCode)423);
+                    default:
+                        return new HttpResponseMessage(HttpStatusCode.BadRequest);
+                }
             }
             catch (Exception e)
             {

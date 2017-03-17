@@ -21,9 +21,9 @@ namespace Logic
             exporter = new Exporter();
         }
 
-        public Task ExportToFormatAsync(string sourcePath, string repoPath, string format)
+        public EExportResult ExportToFormat(string sourcePath, string repoPath, string format)
         {
-            return exporter.ToFormatAsync(sourcePath, repoPath, format);
+            return exporter.ToFormat(sourcePath, repoPath, format);
         }
 
         public FileStream GetStream(string path)

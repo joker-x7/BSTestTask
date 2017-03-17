@@ -75,8 +75,8 @@ namespace TestTask.Tests
             Task<HttpResponseMessage> resultPostSQLite = client.PostAsync(string.Format("{0}/api/file", url), contentForSQLite);
             resultPostSQLite.Wait();
 
-            Assert.AreEqual(HttpStatusCode.OK, resultPostCsv.Result.StatusCode);
-            Assert.AreEqual(HttpStatusCode.OK, resultPostSQLite.Result.StatusCode);
+            Assert.AreEqual(HttpStatusCode.Accepted, resultPostCsv.Result.StatusCode);
+            Assert.AreEqual(HttpStatusCode.Accepted, resultPostSQLite.Result.StatusCode);
         }
 
         [TestMethod]
@@ -100,7 +100,7 @@ namespace TestTask.Tests
             Task<HttpResponseMessage> resultPostWithFormatUnsupported = client.PostAsync(string.Format("{0}/api/file", url), contentForFormatUnsupported);
             resultPostWithFormatUnsupported.Wait();
 
-            Assert.AreEqual(HttpStatusCode.BadRequest, resultPostWithPathNonexistent.Result.StatusCode);
+            Assert.AreEqual(HttpStatusCode.NotFound, resultPostWithPathNonexistent.Result.StatusCode);
             Assert.AreEqual(HttpStatusCode.BadRequest, resultPostWithFormatUnsupported.Result.StatusCode);
         }
 

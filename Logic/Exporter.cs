@@ -13,68 +13,45 @@ namespace Logic
 {
     public class Exporter
     {
-        public Task ToFormatAsync(string sourcePath, string repoPath, string format)
+        public EExportResult ToFormat(string sourcePath, string repoPath, string format)
         {
+            string repoDirectory = Path.GetDirectoryName(repoPath);
+            if (!Directory.Exists(repoDirectory))
+            {
+                Directory.CreateDirectory(repoDirectory);
+            }
+            if (!File.Exists(sourcePath))
+            {
+                return EExportResult.FileNotFond;
+            }
+            if (File.Exists(repoPath) && !CanOpen(sourcePath))
+            {
+                return EExportResult.InProcessing;
+            }
+            if (!File.Exists(repoPath) && !CanOpen(sourcePath))
+            {
+                return EExportResult.Locked;
+            }
+            if (File.Exists(repoPath))
+            {
+                return EExportResult.Created;
+            }
+
             switch (format.ToLower())
             {
                 case "csv":
-                    return ToCsvAsync(sourcePath, repoPath);
+                    Task.Run(() => WriteInCsv(sourcePath, repoPath));
+                    break;
                 case "db":
-                    return ToSQLiteAsync(sourcePath, repoPath);
+                    Task.Run(() => WriteInSQLite(sourcePath, repoPath));
+                    break;
                 default:
-                    throw new Exception("неподдерживаемый формат");
+                    return EExportResult.NotSupportedFormat;
             }
+
+            return EExportResult.Accepted;
         }
-
-        public Task ToCsvAsync(string sourcePath, string repoPath)
-        {
-            try
-            {
-                string repoDirectory = Path.GetDirectoryName(repoPath);
-                if (!Directory.Exists(repoDirectory))
-                {
-                    Directory.CreateDirectory(repoDirectory);
-                }
-                if (CanOpen(sourcePath))
-                {
-                    return Task.Run(() => WriteInCsv(sourcePath, repoPath));
-                }
-                else
-                {
-                    throw new Exception("The file is busy with another process");
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
-        }
-
-        public Task ToSQLiteAsync(string sourcePath, string repoPath)
-        {
-            try
-            {
-                string directory = Path.GetDirectoryName(repoPath);
-                if (!Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                if (CanOpen(sourcePath))
-                {
-                    return Task.Run(() => WriteInSQLite(sourcePath, repoPath));
-                }
-                else
-                {
-                    throw new Exception("The file is busy with another process");
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
-        }
-
+        
         public void WriteInCsv(string sourcePath, string repoPath)
         {
             Header header;
@@ -83,7 +60,7 @@ namespace Logic
             {
                 if (reader.PeekChar() > -1)
                 {
-                    using (StreamWriter writer = new StreamWriter(File.Open(repoPath, FileMode.OpenOrCreate)))
+                    using (StreamWriter writer = new StreamWriter(File.Open(repoPath, FileMode.CreateNew)))
                     {
                         header = ByteToType<Header>(reader);
                         writer.WriteLine(string.Format("{0};{1}",
